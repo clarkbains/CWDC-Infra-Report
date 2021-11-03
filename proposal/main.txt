@@ -82,12 +82,15 @@ Nomad + Docker
 Nomad serves as the job schedule and runner. Everything else is just supporting infrastructure. Nomad
 takes jobs, and works much like docker-compose. You can specify information about the job, and submit it
 to one of the server nodes. Nomad will then allocate the job on one of the Nomad clients. Nomad allows for
-various kinds of execution environments, such as exec directory on the client, JVM, or docker. I wanted to
+various kinds of execution environments, such as exec directly on the client, JVM, or docker. I wanted to
 use docker because of the enhanced security and isolation, as well as the more consistent environment that
 CWDC members can experiment with, locally or on the cluster. Since Nomad is also a Hashicorp software,
-it integrates well into the stack, registering services, and their health check, on consul, automatically. It can
-also work with vault, and have a templated job configuration file that injects secrets from vault into the job’s
-environment.
+it integrates well into the stack, registering services, and their health check, on consul, automatically. It
+can also work with vault, and have a templated job configuration file that injects secrets from vault into
+the job’s environment, allowing members to upload their job specification files online and not worry about
+secrets. Given that Nomad has far less popularity than many other orchestration solutions, making it as
+easy as possible for members to share their configs will help students with similar needs to get their project
+off the ground.
 Nomad job files can specify multiple instances (allocations), and combined with consul service discovery
 and health checks, other services can always discover a healthy allocation of a job and route traffic to it,
 assuming one does exist.
@@ -96,14 +99,15 @@ assuming one does exist.
 
 Mass Data Store
 
-Since Docker was chosen as the nomad execution environment, and docker uses ephemeral containers, I
-needed to have some form of persistent, redundant data store. For this, I chose Ceph. Ceph uses multiple
-storage controllers, and storage daemons, each writing data to their own disk. With only one Openstack
-networked volume to attach, we would have a single point of failure. By using loopback devices, the data
-gets distributed over multiple servers, and will be resilient to a single host failure. Nomad + docker can
-access storage devices using the Container Storage Interface, which ceph has. This allows fine grained ACLs
-and proper configuration for each volume mounted to a nomad job instance, and makes it more host agnostic
-compared to docker bind mounted FUSE mounts.
+Since Docker was chosen as the Nomad execution environment, and Docker uses ephemeral containers, I
+needed to have some form of networked, persistent, redundant data store. For this, I chose Ceph. Ceph
+uses multiple storage controllers, and storage daemons, each writing data to their own disk. With only one
+Openstack networked volume to attach, we would have a single point of failure. By using loopback devices,
+the data gets distributed over multiple servers, and will be resilient to a single host failure. Nomad + Docker
+can access storage devices using the Container Storage Interface, which Ceph has. This allows fine grained
+ACLs and proper configuration for each volume mounted to a nomad job instance, and makes it more host
+agnostic compared to docker bind mounted FUSE mounts. Mounting this way also means that if a Nomad
+client ever needs all jobs to be evacuated, the jobs will still have access over the network to Ceph.
 
 2.6
 
@@ -112,12 +116,12 @@ Reverse Proxy Ingress
 Since the CWDC is a Web Development club after all, most services will be exposing some form of http
 service. By running the Traefik reverse proxy, and connecting it to consul, Traefik can discover the active and
 healthy nomad jobs (which will mostly be student projects), and round-robin route traffic to the correct job’s
-allocation. Traefik also allows for generating trusted SSL certs, using letsencrypt, enhancing the security of
-user applications.
 
 2
 
-2.6.1
+allocation. Traefik also allows for generating trusted SSL certs, using letsencrypt, enhancing the security of
+user applications, with minimal student effort.
+2.6.1
 
 User Submitted Jobs
 
@@ -169,17 +173,18 @@ In my current provisioning implementation, I have nearly 1000 lines of ansible c
 156 different named tasks (and likely a few more I neglected to name) 700 lines of nomad/vault/consul HCL
 configuration, with additional scripts to generate a /etc/hosts file based off of an openstack project, and to
 reset all existing instances.
-In addition I have many configs that I used to use, but then changed to
+In addition I have many configs that I used to use, but then changed to be more flexible, more organized,
+or to use built in functionality rather than custom building it.
 
-3.1
+3
+
+3.1
 
 Provisioning
 
 Currently, I have an ansible playbook to setup most of a Consul+Vault+Nomad+Waypoint system, and
 start a Ceph cluster, all on the provided CWDC OpenStack resources. The resource needs ( 9 instances)
-3
-
-rapidly grew to be too much for my system and Vagrant to handle, so I abandoned Vagrant in favour of
+rapidly grew to be too much for my system and Vagrant to handle, so I abandoned Vagrant in favour of
 testing on the production infrastructure, since it is vacant of projects anyways. I have written scripts to
 interact with Openstack to rebuild (reset) all of the CWDCs instances, which lets me rapidly destroy and
 deploy, which was the objective with Vagrant.
@@ -240,12 +245,11 @@ Since the waypoint user binary supports TLS, we can effectively use SNI to ident
 is heading for, and forward it to the waypoint server. Traefik, the main reverse proxy, unfortunately doesn’t
 support re-encrypting raw tcp data going to the backend though, only ssl passthrough or termination. To
 have a by default (no need to install certs on the user’s computer), trusted certificate presented for the gRPC
-traffic, the only real option is to use traefik to terminate the TLS connection using a certificate automatically
-obtained from letsencrypt, proxy to a service like nginx in cleartext, and have that proxy to waypoint itself,
-
 4
 
-using waypoint’s self signed certificate. Hopefully this is addressed soon, as termination + re-encryption
+traffic, the only real option is to use traefik to terminate the TLS connection using a certificate automatically
+obtained from letsencrypt, proxy to a service like nginx in cleartext, and have that proxy to waypoint itself,
+using waypoint’s self signed certificate. Hopefully this is addressed soon, as termination + re-encryption
 already exists for https traffic, just not TCP TLS.
 
 5
