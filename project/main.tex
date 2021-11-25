@@ -84,10 +84,10 @@ As an example, I could imagine a insecure Consul instance being connected to, an
 To protect against users who decide to be malicious, or get hacked, I would like to implement a few mitigations.
 \begin{itemize}
     \item ACLs on all services that support them
-    \item System, core, and user "Zones", so that more trusted, core services (like the club API and frontend) don't rely on the same instance of services that could otherwise be modified by a service in the user zone.
+    \item System, core, and user "Zones" where ACLs are not adequate, so that more trusted, core services (like the club API and frontend) don't rely on the same instance of services that could otherwise be modified by a service in the user zone.
     \item Internal services and dashboards should either only be accessible via SSH tcp forwarding, alternatively protected in some other way and at most, only be accessible from within the Carleton network.
 \end{itemize}
-Since the entire group runs via a Discord server, I plan to write an auth proxy, where any requests going into traefik services with it enabled, will be forwarded to my service. My auth proxy could then ask for a discord name/id, and then send some verification link over discord, and send a message to the auth proxy front end to forward the user to the correct page. This way, user management for administrative dashboard could be as simple as discord roles.
+Since the entire group runs via a Discord server, I planned to write a discord authorization middleware for traefik. The middleware, like its name implies, sits in the middle, between incoming requests and the service they get routed to. It receives a copy of incoming requests from traefik where the middleware is enabled, and then 
 
 
 \section{Current Implementation}
